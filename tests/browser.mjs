@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import JSZip from 'jszip';
-import { PDFDict, PDFDocument, PDFName } from 'pdf-lib';
+import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, PDFRef } from 'pdf-lib';
 
 await mkdir('.local', { recursive: true });
 const browser = await chromium.launch({
@@ -24,10 +24,18 @@ async function download(name) {
   return readFile(`.local/${name}`);
 }
 async function assertSpotPdf(bytes) {
+  assert.equal(new TextDecoder().decode(bytes.subarray(0, 8)), '%PDF-1.3');
   const doc = await PDFDocument.load(bytes);
   for (const pdfPage of doc.getPages()) {
     const colors = pdfPage.node.Resources().lookup(PDFName.of('ColorSpace'), PDFDict);
-    assert.ok(colors.has(PDFName.of('CutContour')));
+    const spot = colors.lookup(PDFName.of('CS0'), PDFArray);
+    assert.equal(spot.get(0).toString(), '/Separation');
+    assert.equal(spot.get(1).toString(), '/CutContour');
+    assert.ok(spot.get(3) instanceof PDFRef);
+    assert.ok(pdfPage.node.Contents() instanceof PDFRawStream);
+    assert.equal(pdfPage.node.Contents().dict.has(PDFName.of('Filter')), false);
+    const images = pdfPage.node.Resources().lookup(PDFName.of('XObject'), PDFDict);
+    for (const ref of images.values()) assert.equal(doc.context.lookup(ref).dict.has(PDFName.of('SMask')), false);
   }
   return doc;
 }

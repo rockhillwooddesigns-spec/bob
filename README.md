@@ -44,17 +44,19 @@ npm run test:browser
 4. Export separate PDFs, bundled in a ZIP for multiple designs, or automatically packed A4 sheets. Uncheck **Include artwork** to export only the vector cut paths.
 5. Open the PDFs in VersaWorks at 100% scale. Verify its animated dotted cut preview and the physical dimensions, choose the appropriate Print & Cut controls, and run a small test cut before production.
 
+Version 1.0.1 uses a simpler PDF 1.3 export structure based on the cut-square diagnostic recognized in the reported VersaWorks 7.6.1 installation. Print artwork is flattened onto white; the CutContour lines remain separate vector strokes. The specific cause of the original rejection is not yet isolated, and the revised artwork export still needs confirmation in VersaWorks.
+
 The export defines a real PDF `/Separation /CutContour /DeviceCMYK` spot color with a magenta alternate color, a 0.25 pt closed vector stroke, and stroke overprinting. The spot color name is case-sensitive. Page bounds include the cut offset and a 3 mm margin for individual designs. A4 sheets use an 8 mm margin and 6 mm gaps between the outer bounds.
 
 ## Processing and limits
 
 - Files are decoded and processed locally. Artwork is not uploaded. Fonts are self-hosted; the app has no runtime API or analytics calls.
 - The longest raster edge is capped at 1,400 pixels for predictable browser memory use. SVG artwork is rasterized for printing. Contour paths remain vectors. This tool suits small stickers; check effective print resolution before using large physical sizes.
-- Tracing uses transparency, or optionally ignores near-white pixels. It does not automatically segment a photo from a complex background. The original artwork is preserved in the PDF; white mode changes tracing, not image colors.
+- Tracing uses transparency, or optionally ignores near-white pixels. It does not automatically segment a photo from a complex background. White mode changes tracing. At export, transparency and partially transparent pixels in the print artwork are composited onto white. This is intended for white media; live transparency and separate white-ink handling are not preserved.
 - Very small islands under four source pixels of area are discarded. Rounded offsets are unioned to avoid duplicate cuts when shapes overlap. Smoothing reduces path nodes; inspect fine details and narrow cutouts before exporting.
 - A4 packing preserves order and size without rotation or duplication. Oversized designs produce an error rather than being clipped.
 - Files and settings are held in memory and reset on reload. This version has no saved projects or user accounts.
-- PDF structure, physical dimensions, raster transparency, and browser downloads are tested automatically. A physical Roland printer and VersaWorks are not available in this environment; recognition, media settings, color management, and cutting force must be checked on the production system.
+- PDF structure, physical dimensions, alpha flattening, and browser downloads are tested automatically. A physical Roland printer and VersaWorks are not available in this environment; recognition, media settings, color management, and cutting force must be checked on the production system.
 
 ## Stack
 

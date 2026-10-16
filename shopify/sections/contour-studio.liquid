@@ -1,0 +1,53 @@
+{% comment %}
+  Install as sections/contour-studio.liquid, then add Contour Studio in Customize.
+  Use the HTTPS URL of your HOSTED customer app, never the unrestricted owner ZIP.
+{% endcomment %}
+{% liquid
+  assign app_url = section.settings.app_url | strip
+  assign app_prefix = app_url | slice: 0, 8
+%}
+<section id="ContourStudio-{{ section.id }}" class="contour-store-section">
+  {% if section.settings.heading != blank %}
+    <h2 class="contour-store-heading">{{ section.settings.heading | escape }}</h2>
+  {% endif %}
+  {% if app_prefix == 'https://' %}
+    <div class="contour-store-actions">
+      <span>Create print-ready contour-cut PDFs.</span>
+      <a href="{{ app_url | escape }}" target="_blank" rel="noopener noreferrer">Open full workspace ↗</a>
+    </div>
+    <iframe
+      src="{{ app_url | escape }}"
+      title="Contour Studio artwork and contour-cut workspace"
+      loading="lazy"
+      referrerpolicy="strict-origin-when-cross-origin"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
+      class="contour-store-frame"
+    ></iframe>
+    <p class="contour-store-help">Sign-in and billing use your Contour Studio account. If your browser blocks sign-in or downloads, open the full workspace above. Save your PDFs before closing this page.</p>
+  {% elsif request.design_mode %}
+    <p>Add your hosted Contour Studio HTTPS URL in this section's settings. The owner ZIP does not enforce paid plans.</p>
+  {% else %}
+    <p>The contour workspace is being prepared. Please check back soon.</p>
+  {% endif %}
+</section>
+<style>
+  #ContourStudio-{{ section.id }} { max-width: 1800px; margin: 0 auto; padding: 24px 16px; }
+  #ContourStudio-{{ section.id }} .contour-store-heading { margin: 0 0 16px; }
+  #ContourStudio-{{ section.id }} .contour-store-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+  #ContourStudio-{{ section.id }} .contour-store-actions a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+  #ContourStudio-{{ section.id }} .contour-store-frame { display: block; width: 100%; height: {{ section.settings.workspace_height }}px; border: 1px solid #34404b; border-radius: 16px; background: #11171e; }
+  #ContourStudio-{{ section.id }} .contour-store-help { font-size: 13px; line-height: 1.5; margin: 12px 0 0; opacity: .8; }
+  @media (max-width: 749px) { #ContourStudio-{{ section.id }} { padding: 16px 8px; } }
+</style>
+{% schema %}
+{
+  "name": "Contour Studio",
+  "tag": "section",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Contour Studio" },
+    { "type": "url", "id": "app_url", "label": "Hosted customer app URL", "info": "Your HTTPS Netlify or custom app domain. Do not use the owner edition for paid access." },
+    { "type": "range", "id": "workspace_height", "label": "Workspace height", "min": 600, "max": 1400, "step": 50, "unit": "px", "default": 1000 }
+  ],
+  "presets": [{ "name": "Contour Studio" }]
+}
+{% endschema %}

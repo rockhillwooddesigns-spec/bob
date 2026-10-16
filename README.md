@@ -12,6 +12,10 @@ A modern dark/light workspace for creating Roland VersaWorks contour-cut PDFs in
 
 **The owner ZIP is not the paid customer website.** Customers using that build would have unrestricted owner access. For subscriptions and Free quotas, deploy the hosted build from GitHub using the steps below.
 
+## Run it on Shopify
+
+[Download the Shopify integration ZIP](downloads/contour-shopify.zip?raw=true) and [follow the installation guide](docs/SHOPIFY.md). The tool appears on a store page while the hosted app handles accounts, exports, and Stripe billing. Includes email-code sign-in for embedded pages and checkout in a separate tab. A custom app subdomain of your store gives the best embedded experience; browsers that block embedded storage get a full-workspace button.
+
 ## Launch paid customer access
 
 [Follow the Stripe + Supabase launch guide](docs/PAID-LAUNCH.md). Netlify builds the customer site from this repository with the committed `netlify.toml`; customer auth, database rules, signed Stripe webhooks, and export APIs require your own provider configuration. A static Drop upload cannot run those APIs.

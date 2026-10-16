@@ -248,3 +248,10 @@ h1>span { color: var(--accent); font-weight: 500; }
 .batch-actions { display: flex; align-items: center; gap: 10px; }
 .batch-actions button { color: var(--soft); font-size: 9px; padding: 0; }
 .batch-actions button:hover { color: var(--accent); }
+
+.storefront-banner { padding: 12px 24px; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; background: #172b2b; color: #edf9f7; font-size: 13px; border-bottom: 1px solid #30534f; }
+.storefront-banner a { color: #a5f3d0; margin-left: auto; font-weight: 700; }
+.storefront-banner small { flex-basis: 100%; color: #bdd1cd; }
+
+.storefront-storage { max-width: 680px; margin: 80px auto; padding: 32px; color: var(--text, #e5e7eb); line-height: 1.7; }
+.storefront-storage a { display: inline-block; margin-top: 16px; padding: 10px 20px; background: #a5f3d0; color: #112a24; border-radius: 10px; font-weight: 700; text-decoration: none; }

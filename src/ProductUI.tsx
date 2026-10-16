@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Bookmark, Check, CreditCard, LoaderCircle, LockKeyhole, Mail, Moon, Plus, Sun, Trash2, X } from 'lucide-react';
 import { api, auth, type Account } from './account';
+import { embedded, openBilling } from './storefront';
 import type { Preset } from './hosted-types';
 import type { Settings } from './types';
 
@@ -22,12 +23,12 @@ export function PlansDialog({ account, onClose, onSignIn }: { account: Account; 
   async function subscribe(plan: 'monthly' | 'annual') {
     if (!account.session) { onClose(); onSignIn(); return; }
     setPending(plan); setError('');
-    try { const response = await api<{ url: string }>('/api/checkout', account.token, 'POST', { plan }); location.assign(response.url); }
+    try { await openBilling(() => api<{ url: string }>('/api/checkout', account.token, 'POST', { plan })); setPending(''); }
     catch (error) { setError(error instanceof Error ? error.message : 'Could not start checkout.'); setPending(''); }
   }
   async function manage() {
     setPending('portal'); setError('');
-    try { const response = await api<{ url: string }>('/api/portal', account.token, 'POST', {}); location.assign(response.url); }
+    try { await openBilling(() => api<{ url: string }>('/api/portal', account.token, 'POST', {})); setPending(''); }
     catch (error) { setError(error instanceof Error ? error.message : 'Could not open billing.'); setPending(''); }
   }
   const unavailable = account.owner || !account.configured;
@@ -44,16 +45,24 @@ export function PlansDialog({ account, onClose, onSignIn }: { account: Account; 
 
 export function SignInDialog({ account, onClose }: { account: Account; onClose: () => void }) {
   const dialog = useDialog();
+  const [code, setCode] = useState(''), [sent, setSent] = useState(false);
   const [email, setEmail] = useState(''), [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState('');
   useEffect(() => { if (account.session) onClose(); }, [account.session]);
   async function signIn(event: React.FormEvent) {
     event.preventDefault(); if (!auth) return;
     setBusy(true); setError('');
-    try { const result = await auth.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: location.origin } }); if (result.error) throw result.error; setMessage('Check your email for a secure sign-in link. You can close this window after opening it.'); }
+    try { const result = await auth.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: location.origin } }); if (result.error) throw result.error; setSent(true); setMessage(embedded ? 'Enter the code from your email below to sign in on this store page.' : 'Check your email for a secure sign-in link. You can close this window after opening it.'); }
     catch (error) { setError(error instanceof Error ? error.message : 'Could not send your sign-in link.'); }
     finally { setBusy(false); }
   }
-  return <dialog ref={dialog} className="guide-dialog auth-dialog" onCancel={onClose} aria-labelledby="signin-title"><button className="guide-close icon-button" aria-label="Close sign in" onClick={onClose}><X size={20} /></button><span className="product-dialog-icon"><Mail size={24} /></span><h2 id="signin-title">A little less setup.</h2><p className="guide-intro">Sign in with an email link. No password to remember.</p>{!account.configured ? <p className="product-error">Customer sign-in is not connected in this owner workspace. Complete the hosted launch setup first.</p> : <form onSubmit={event => void signIn(event)}><label htmlFor="signin-email">Your email</label><input id="signin-email" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} placeholder="you@yourprintshop.com" /><button className="button button-green" disabled={busy}>{busy ? <LoaderCircle size={16} className="spin" /> : <Mail size={16} />}Send sign-in link</button></form>}{message && <p className="product-success" role="status">{message}</p>}{error && <p className="product-error" role="alert">{error}</p>}<p className="quota-footnote">Your account tracks your export allowance and saved presets. In the hosted service, artwork pixels stay in your browser; cut-path geometry is sent to the export service.</p></dialog>;
+  async function verify(event: React.FormEvent) {
+    event.preventDefault(); if (!auth) return;
+    setBusy(true); setError('');
+    try { const result = await auth.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' }); if (result.error) throw result.error; }
+    catch (error) { setError(error instanceof Error ? error.message : 'Could not verify this code.'); }
+    finally { setBusy(false); }
+  }
+  return <dialog ref={dialog} className="guide-dialog auth-dialog" onCancel={onClose} aria-labelledby="signin-title"><button className="guide-close icon-button" aria-label="Close sign in" onClick={onClose}><X size={20} /></button><span className="product-dialog-icon"><Mail size={24} /></span><h2 id="signin-title">A little less setup.</h2><p className="guide-intro">{embedded ? 'Sign in with an email code. No password to remember.' : 'Sign in with an email link. No password to remember.'}</p>{!account.configured ? <p className="product-error">Customer sign-in is not connected in this owner workspace. Complete the hosted launch setup first.</p> : <form onSubmit={event => void (embedded && sent ? verify(event) : signIn(event))}><label htmlFor="signin-email">Your email</label><input id="signin-email" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} placeholder="you@yourprintshop.com" readOnly={embedded && sent} />{embedded && sent && <><label htmlFor="signin-code">Email sign-in code</label><input id="signin-code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6,10}" required value={code} onChange={event => setCode(event.target.value)} /></>}<button className="button button-green" disabled={busy}>{busy ? <LoaderCircle size={16} className="spin" /> : <Mail size={16} />}{embedded ? sent ? 'Verify code' : 'Send sign-in code' : 'Send sign-in link'}</button>{embedded && sent && <button type="button" className="text-button" disabled={busy} onClick={() => { setSent(false); setCode(''); setMessage(''); }}>Use another email or resend</button>}</form>}{message && <p className="product-success" role="status">{message}</p>}{error && <p className="product-error" role="alert">{error}</p>}<p className="quota-footnote">Your account tracks your export allowance and saved presets. In the hosted service, artwork pixels stay in your browser; cut-path geometry is sent to the export service.</p></dialog>;
 }
 
 export function PresetControls({ account, settings, onApply, onUpgrade, notify }: { account: Account; settings: Settings; onApply: (value: Settings) => void; onUpgrade: () => void; notify: (text: string, error?: boolean) => void }) {

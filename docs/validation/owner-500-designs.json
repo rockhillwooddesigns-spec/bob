@@ -1,0 +1,11 @@
+{
+  "dark/light mode persists across reloads": 2.23,
+  "exact CAD plan prices and owner-mode payment disclosure": 2.61,
+  "presets save and restore the actual contour settings": 3.17,
+  "501-design input is rejected before altering the existing batch": 6.98,
+  "500 full-resolution images import, trace, paginate, and search": 55.59,
+  "large export can be canceled without losing artwork": 55.86,
+  "all 500 print-and-cut PDFs download across ten bounded ZIP volumes": 115.26,
+  "mainThreadHeapMbAfterExport": 18.9,
+  "no browser runtime errors": 115.54
+}

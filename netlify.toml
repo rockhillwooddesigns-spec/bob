@@ -1,0 +1,40 @@
+[build]
+command = "npm run build"
+publish = "dist"
+functions = "netlify/functions"
+
+[build.environment]
+NODE_VERSION = "24"
+VITE_BILLING_ENABLED = "true"
+
+[functions]
+node_bundler = "esbuild"
+
+[[redirects]]
+from = "/api/account"
+to = "/.netlify/functions/account"
+status = 200
+[[redirects]]
+from = "/api/checkout"
+to = "/.netlify/functions/checkout"
+status = 200
+[[redirects]]
+from = "/api/portal"
+to = "/.netlify/functions/portal"
+status = 200
+[[redirects]]
+from = "/api/stripe-webhook"
+to = "/.netlify/functions/webhook"
+status = 200
+[[redirects]]
+from = "/api/export-jobs"
+to = "/.netlify/functions/export-jobs"
+status = 200
+[[redirects]]
+from = "/api/render-export"
+to = "/.netlify/functions/render-export"
+status = 200
+[[redirects]]
+from = "/api/presets"
+to = "/.netlify/functions/presets"
+status = 200

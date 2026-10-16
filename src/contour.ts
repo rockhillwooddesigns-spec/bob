@@ -25,7 +25,12 @@ export async function decodeArtwork(file: Blob, name: string, demo = false): Pro
     canvas.height = height;
     const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
     ctx.drawImage(image, 0, 0, width, height);
-    return { id: crypto.randomUUID(), name, image: canvas.toDataURL('image/png'), width, height, pixels: ctx.getImageData(0, 0, width, height).data, demo };
+    const thumb = document.createElement('canvas');
+    const thumbScale = Math.min(1, 120 / Math.max(width, height));
+    thumb.width = Math.max(1, Math.round(width * thumbScale));
+    thumb.height = Math.max(1, Math.round(height * thumbScale));
+    thumb.getContext('2d')!.drawImage(canvas, 0, 0, thumb.width, thumb.height);
+    return { id: crypto.randomUUID(), name, image: canvas.toDataURL('image/png'), thumbnail: thumb.toDataURL('image/png'), width, height, pixels: ctx.getImageData(0, 0, width, height).data, demo };
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -126,7 +131,7 @@ export function ringPath(rings: Ring[]): string {
   return rings.map(ring => `M${ring.map(p => p.map(v => +v.toFixed(3)).join(',')).join('L')}Z`).join(' ');
 }
 
-export function boundsFor(art: TracedArtwork) {
+export function boundsFor(art: Pick<TracedArtwork, 'width' | 'height' | 'rings'>) {
   let minX = 0, minY = 0, maxX = art.width, maxY = art.height;
   for (const ring of art.rings) for (const [x, y] of ring) {
     minX = Math.min(minX, x); minY = Math.min(minY, y);

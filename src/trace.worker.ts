@@ -1,14 +1,17 @@
 import { traceArtwork } from './contour';
-import type { Artwork, Settings } from './types';
+import { loadArtwork } from './artwork-store';
+import type { ArtworkSummary, Settings } from './types';
 
-self.onmessage = (event: MessageEvent<{ artworks: Artwork[]; settings: Settings }>) => {
-  try {
-    const results = event.data.artworks.map(art => {
+self.onmessage = async (event: MessageEvent<{ workspace: string; artworks: ArtworkSummary[]; settings: Settings }>) => {
+  let completed = 0;
+  for (const summary of event.data.artworks) {
+    try {
+      const art = await loadArtwork(event.data.workspace, summary);
       const { id, rings, error } = traceArtwork(art, event.data.settings);
-      return { id, rings, error };
-    });
-    self.postMessage({ results });
-  } catch (error) {
-    self.postMessage({ error: error instanceof Error ? error.message : 'Could not generate contours.' });
+      self.postMessage({ result: { id, rings, error }, completed: ++completed });
+    } catch (error) {
+      self.postMessage({ result: { id: summary.id, rings: [], error: error instanceof Error ? error.message : 'Could not trace this design.' }, completed: ++completed });
+    }
   }
+  self.postMessage({ done: true });
 };

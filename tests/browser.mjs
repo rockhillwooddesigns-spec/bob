@@ -133,10 +133,16 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: '.local/mobile.png', fullPage: true });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
-  await page.getByRole('button', { name: 'Quick guide' }).click();
+  await page.getByRole('button', { name: 'VersaWorks setup guide' }).click();
   await page.getByRole('dialog').waitFor();
   await page.getByRole('button', { name: 'Back to the workspace' }).click();
   checked('mobile workspace fits the viewport and guide remains usable');
+
+  await page.getByRole('button', { name: 'Clear batch', exact: true }).click();
+  assert.equal(await page.locator('.count-badge').innerText(), '0');
+  await page.getByRole('button', { name: 'Try sample artwork' }).click();
+  await page.getByText('3 designs ready to go').waitFor();
+  checked('bulk clearing starts a new batch without a reload');
 
   assert.deepEqual(errors, []);
   checked('no browser runtime errors');

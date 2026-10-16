@@ -9,7 +9,12 @@ export interface Artwork {
   height: number;
   pixels: Uint8ClampedArray;
   demo?: boolean;
+  thumbnail?: string;
 }
+
+export type ArtworkSummary = Omit<Artwork, 'pixels' | 'thumbnail'>;
+export type TracedSummary = ArtworkSummary & { rings: Ring[]; error?: string };
+export interface DownloadPart { id: string; name: string; bytes: number; designCount: number }
 
 export interface Settings {
   widthMm: number;

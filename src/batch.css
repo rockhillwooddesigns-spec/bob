@@ -1,0 +1,17 @@
+.artwork-search { margin: 0 15px 12px; width: calc(100% - 30px); padding: 8px 9px; border: 1px solid #dce4d3; border-radius: 5px; font-size: 10px; color: #557147; background: #fbfdf8; }
+.artwork-pagination { display: flex; justify-content: space-between; align-items: center; padding: 5px 15px 14px; font-size: 9px; color: #879778; }
+.artwork-pagination button { padding: 4px 0; font-size: 9px; color: #58784c; }
+.cancel-import { margin: -7px 14px 12px; font-size: 9px; color: #8a664d; text-align: center; }
+.saved-downloads { font-size: 9px; white-space: nowrap; }
+.batch-progress { width: 100%; height: 8px; margin: 28px 0 12px; border-radius: 8px; accent-color: #547344; }
+.batch-progress::-webkit-progress-bar { border-radius: 8px; background: #e9efdf; }
+.batch-progress::-webkit-progress-value { border-radius: 8px; background: #547344; }
+.export-explanation { color: #899a79; font-size: 11px; line-height: 1.8; margin: 15px 0 20px; }
+.download-part-list { display: flex; flex-direction: column; gap: 8px; margin-top: 22px; max-height: 45vh; overflow: auto; }
+.download-part { display: flex; align-items: center; gap: 12px; border: 1px solid #dbe4d1; border-radius: 6px; padding: 13px; background: #f7faf1; text-align: left; color: #62804f; }
+.download-part>span:first-child { flex-shrink: 0; }
+.download-part>span:nth-child(2) { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.download-part strong { font-size: 11px; word-break: break-all; }
+.download-part small { font-size: 10px; color: #9ba98d; }
+.download-part>svg:last-child { margin-left: auto; flex-shrink: 0; }
+@media(max-width:560px) { .artwork-search { font-size: 12px; } .saved-downloads { margin-right: auto; } .export-options .saved-downloads+.include-artwork { width: auto; } }

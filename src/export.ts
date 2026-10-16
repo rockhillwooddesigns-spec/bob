@@ -1,16 +1,16 @@
 import JSZip from 'jszip';
 import {
   PDFDocument, PDFName, PDFNumber, PDFOperator, PDFOperatorNames, PDFBool,
-  PDFArray, PDFContentStream, PDFRef,
+  PDFArray, PDFContentStream, PDFRef, PDFRawStream, decodePDFRawStream,
   pushGraphicsState, popGraphicsState, setLineWidth,
   moveTo, lineTo, closePath, stroke,
   type PDFPage, type PDFDict,
 } from 'pdf-lib';
 import { boundsFor } from './contour';
-import type { Settings, TracedArtwork } from './types';
+import { planPdfLayout } from './pdf-layout';
+import type { Artwork, Settings, TracedArtwork } from './types';
 
 const PT = 72 / 25.4;
-const MARGIN = 3;
 const rounded = (value: number) => Math.round(value * 10000) / 10000;
 
 function setupSpotColor(doc: PDFDocument, page: PDFPage) {
@@ -72,45 +72,67 @@ async function drawArtwork(doc: PDFDocument, page: PDFPage, art: TracedArtwork, 
   page.pushOperators(popGraphicsState());
 }
 
-export async function createPdf(artworks: TracedArtwork[], settings: Settings): Promise<Uint8Array> {
+export async function createPdf(artworks: TracedArtwork[], settings: Settings, options: { loadArtwork?: (art: TracedArtwork) => Promise<Artwork>; onArtwork?: () => void } = {}): Promise<Uint8Array> {
   if (!artworks.length || artworks.some(art => !art.rings.length || art.error)) throw new Error('Every selected design must have a valid contour before exporting.');
   const doc = await PDFDocument.create();
   doc.setTitle(artworks.length === 1 ? artworks[0].name : 'Contour — batch cut sheet');
-  doc.setCreator('Contour Studio 1.0.1');
+  doc.setCreator('Contour Studio 1.2.0');
   doc.setSubject('Print and cut artwork with a CutContour Separation spot color');
-  if (settings.layout === 'individual') {
-    for (const art of artworks) {
-      const b = boundsFor(art), mmPerPixel = settings.widthMm / art.width;
-      const page = doc.addPage([(b.width * mmPerPixel + MARGIN * 2) * PT, (b.height * mmPerPixel + MARGIN * 2) * PT]);
-      setupSpotColor(doc, page);
-      await drawArtwork(doc, page, art, settings, MARGIN, MARGIN);
-    }
-  } else {
-    const margin = 8, gap = 6, pageWidth = 210, pageHeight = 297;
-    let page = doc.addPage([pageWidth * PT, pageHeight * PT]);
+  for (const layout of planPdfLayout(artworks, settings)) {
+    const page = doc.addPage([layout.widthMm * PT, layout.heightMm * PT]);
     setupSpotColor(doc, page);
-    let x = margin, y = margin, rowHeight = 0;
-    for (const art of artworks) {
-      const b = boundsFor(art), mmPerPixel = settings.widthMm / art.width;
-      const width = b.width * mmPerPixel, height = b.height * mmPerPixel;
-      if (width > pageWidth - margin * 2 || height > pageHeight - margin * 2) throw new Error(`${art.name} is too large for A4. Reduce the artwork width or export separate PDFs.`);
-      if (x + width > pageWidth - margin + 0.001) { x = margin; y += rowHeight + gap; rowHeight = 0; }
-      if (y + height > pageHeight - margin + 0.001) { page = doc.addPage([pageWidth * PT, pageHeight * PT]); setupSpotColor(doc, page); x = margin; y = margin; rowHeight = 0; }
-      await drawArtwork(doc, page, art, settings, x, y);
-      rowHeight = Math.max(rowHeight, height);
-      x += width + gap;
+    for (const item of layout.items) {
+      const art = artworks[item.index];
+      const raster = settings.includeArtwork && options.loadArtwork ? { ...art, ...await options.loadArtwork(art), rings: art.rings } : art;
+      await drawArtwork(doc, page, raster, settings, item.leftMm, item.topMm);
+      options.onArtwork?.();
     }
   }
+  return saveCompatiblePdf(doc);
+}
+
+export async function addRasterArtwork(cutPdf: Uint8Array, artworks: TracedArtwork[], settings: Settings, load: (art: TracedArtwork) => Promise<Artwork>, onArtwork: () => void) {
+  const doc = await PDFDocument.load(cutPdf);
+  const layout = planPdfLayout(artworks, settings);
+  if (doc.getPageCount() !== layout.length) throw new Error('The export service returned an unexpected page layout.');
+  for (let i = 0; i < layout.length; i++) {
+    const page = doc.getPages()[i];
+    const previous = page.node.normalizedEntries().Contents?.asArray().slice() || [];
+    for (const item of layout[i].items) {
+      const art = artworks[item.index];
+      if (settings.includeArtwork) {
+        const raster = await load(art);
+        const bounds = boundsFor(art), scale = settings.widthMm / art.width * PT;
+        const x = item.leftMm * PT - bounds.minX * scale;
+        const top = page.getHeight() - item.topMm * PT + bounds.minY * scale;
+        drawOpaqueArtwork(doc, page, { ...art, ...raster, rings: art.rings }, x, top - art.height * scale, art.width * scale, art.height * scale);
+      }
+      onArtwork();
+    }
+    // Prepend the print image stream. Drawing it above the spot paths could hide
+    // inner cutouts. The spot color and all cut strokes come from the service.
+    const all = page.node.normalizedEntries().Contents?.asArray() || [];
+    page.node.set(PDFName.of('Contents'), doc.context.obj([...all.filter(ref => !previous.includes(ref)), ...previous]));
+  }
+  return saveCompatiblePdf(doc);
+}
+
+async function saveCompatiblePdf(doc: PDFDocument): Promise<Uint8Array> {
   // Keep a single, uncompressed page content stream, as in the known-working
   // diagnostic. Image data can remain compressed without changing cut paths.
+  const obsolete = new Set<PDFRef>();
   for (const page of doc.getPages()) {
-    const contents = page.node.Contents() as PDFArray;
-    const refs = contents.asArray() as PDFRef[];
-    const commands = refs.map(ref => (doc.context.lookup(ref) as PDFContentStream).getContentsString()).join('\n');
+    const contents = page.node.Contents();
+    const refs = contents instanceof PDFArray ? contents.asArray() as PDFRef[] : [page.node.get(PDFName.of('Contents')) as PDFRef];
+    const commands = refs.map(ref => {
+      const object = doc.context.lookup(ref);
+      return object instanceof PDFRawStream ? new TextDecoder().decode(decodePDFRawStream(object).decode()) : (object as PDFContentStream).getContentsString();
+    }).join('\n');
     const stream = doc.context.register(doc.context.stream(commands));
     page.node.set(PDFName.of('Contents'), stream);
-    refs.forEach(ref => doc.context.delete(ref));
+    refs.forEach(ref => obsolete.add(ref));
   }
+  obsolete.forEach(ref => doc.context.delete(ref));
   const bytes = await doc.save({ useObjectStreams: false });
   // pdf-lib's writer hardcodes 1.7 and ignores context.header. Everything we
   // emit above is PDF 1.3: opaque RGB images, Separation colors, classic xref,
